@@ -47,7 +47,7 @@ async def _search_arxiv(query: str, max_results: int = None) -> List[PaperResult
     Docs: https://info.arxiv.org/help/api/basics.html
     """
     max_results = max_results or settings.ARXIV_MAX_RESULTS
-    url = "http://export.arxiv.org/api/query"
+    url = "https://export.arxiv.org/api/query"
     params = {
         "search_query": f"all:{query}",
         "start": 0,
@@ -58,7 +58,7 @@ async def _search_arxiv(query: str, max_results: int = None) -> List[PaperResult
 
     papers = []
     try:
-        async with httpx.AsyncClient(timeout=30) as client:
+        async with httpx.AsyncClient(timeout=15.0, follow_redirects=True) as client:
             response = await client.get(url, params=params)
             response.raise_for_status()
 
@@ -104,7 +104,7 @@ async def _search_pubmed(query: str, max_results: int = None) -> List[PaperResul
     papers = []
 
     try:
-        async with httpx.AsyncClient(timeout=30) as client:
+        async with httpx.AsyncClient(timeout=10.0) as client:
             # Step 1: ESearch — get matching paper IDs
             search_url = "https://eutils.ncbi.nlm.nih.gov/entrez/eutils/esearch.fcgi"
             search_params = {
@@ -184,14 +184,14 @@ async def _search_pubmed(query: str, max_results: int = None) -> List[PaperResul
 
 # ======================== Combined Search ========================
 
-async def search_papers(query: str) -> List[PaperResult]:
+async def search_papers(query: str, max_results: int = 5) -> List[PaperResult]:
     """
     Search both arXiv and PubMed concurrently.
-    Returns combined list of PaperResult objects (typically 10 papers).
+    Returns combined list of PaperResult objects.
     """
     arxiv_papers, pubmed_papers = await asyncio.gather(
-        _search_arxiv(query),
-        _search_pubmed(query),
+        _search_arxiv(query, max_results=max_results),
+        _search_pubmed(query, max_results=max_results),
         return_exceptions=True
     )
 

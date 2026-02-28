@@ -46,6 +46,14 @@ class NoveltyAgent:
         summaries_text = json.dumps(summaries, indent=2) if not isinstance(summaries, str) else summaries
         insights_text = json.dumps(insights, indent=2) if not isinstance(insights, str) else insights
 
+        # If upstream summarizer failed, return a neutral score instead of wasting an LLM call
+        if isinstance(summaries, dict) and "error" in summaries:
+            return {
+                "overall_score": 0,
+                "explanation": "Novelty scoring unavailable — summarizer failed upstream.",
+                "error": summaries["error"]
+            }
+
         messages = [
             {
                 "role": "system",

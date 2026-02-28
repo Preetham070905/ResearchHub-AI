@@ -47,6 +47,14 @@ class CritiqueAgent:
         summaries_text = json.dumps(summaries, indent=2) if not isinstance(summaries, str) else summaries
         comparison_text = json.dumps(comparison, indent=2) if not isinstance(comparison, str) else comparison
 
+        # If upstream summarizer failed, skip LLM call
+        if isinstance(summaries, dict) and "error" in summaries:
+            return {
+                "scientific_critique": {"strong_points": [], "weak_points": []},
+                "argument_strength": [],
+                "error": "Critique unavailable — summarizer failed upstream."
+            }
+
         messages = [
             {
                 "role": "system",
@@ -93,7 +101,7 @@ JSON only. No markdown."""
             }
         ]
 
-        response = await call_llm_async(messages, max_tokens=2500)
+        response = await call_llm_async(messages, max_tokens=1500)
 
         try:
             return json.loads(response)

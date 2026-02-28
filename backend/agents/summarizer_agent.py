@@ -73,7 +73,7 @@ class SummarizerAgent:
             }
         ]
 
-        response = await call_llm_async(messages, max_tokens=2000)
+        response = await call_llm_async(messages, max_tokens=1500)
 
         try:
             parsed = json.loads(response)

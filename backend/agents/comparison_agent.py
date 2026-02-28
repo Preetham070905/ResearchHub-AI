@@ -37,6 +37,17 @@ class ComparisonAgent:
         if not summaries:
             raise ValueError("summaries cannot be empty")
 
+        # If upstream summarizer failed, skip LLM call and return a clear error
+        if isinstance(summaries, dict) and "error" in summaries:
+            return {
+                "methodology_similarities": [],
+                "methodology_differences": [],
+                "strengths": [],
+                "weaknesses": [],
+                "performance_tradeoffs": [],
+                "error": f"Skipped — summarizer failed: {summaries['error']}"
+            }
+
         # Ensure summaries are serialized as a clean JSON string for the prompt
         summaries_text = json.dumps(summaries, indent=2) if not isinstance(summaries, str) else summaries
 

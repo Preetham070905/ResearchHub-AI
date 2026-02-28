@@ -38,6 +38,17 @@ class InsightAgent:
         if not summaries:
             raise ValueError("summaries cannot be empty")
 
+        # If upstream summarizer failed, skip LLM call
+        if isinstance(summaries, dict) and "error" in summaries:
+            return {
+                "unique_methods": [],
+                "common_datasets": [],
+                "evaluation_metrics": [],
+                "recurring_limitations": [],
+                "emerging_themes": [],
+                "error": f"Skipped — summarizer failed: {summaries['error']}"
+            }
+
         # Convert summaries to string safely
         summaries_text = json.dumps(summaries, indent=2)
 

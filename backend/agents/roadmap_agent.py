@@ -45,6 +45,12 @@ class RoadmapAgent:
         summaries_text = json.dumps(summaries, indent=2) if not isinstance(summaries, str) else summaries
         gaps_text = json.dumps(gaps, indent=2) if not isinstance(gaps, str) else gaps
 
+        # If upstream summarizer failed, skip LLM call
+        if isinstance(summaries, dict) and "error" in summaries:
+            return {
+                "error": "Roadmap generation unavailable — summarizer failed upstream."
+            }
+
         messages = [
             {
                 "role": "system",
@@ -103,7 +109,7 @@ JSON only. No markdown."""
             }
         ]
 
-        response = await call_llm_async(messages, max_tokens=3000)
+        response = await call_llm_async(messages, max_tokens=1500)
 
         try:
             return json.loads(response)

@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { Search, Sparkles, LogOut } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
@@ -5,6 +6,13 @@ import { useNavigate } from 'react-router-dom';
 export default function Navbar() {
     const { workspaces, activeWorkspace, setActiveWorkspace, email, logout } = useAuth();
     const navigate = useNavigate();
+    const [searchQuery, setSearchQuery] = useState('');
+
+    const handleSearch = () => {
+        if (!searchQuery.trim()) return;
+        navigate(`/paper-search?q=${encodeURIComponent(searchQuery.trim())}`);
+        setSearchQuery('');
+    };
 
     return (
         <nav className="navbar">
@@ -36,8 +44,11 @@ export default function Navbar() {
                     }} />
                     <input
                         className="input"
-                        placeholder="Global semantic search across all papers..."
+                        placeholder="Search papers across arXiv & PubMed..."
                         style={{ width: '100%', paddingLeft: 32, fontSize: 12 }}
+                        value={searchQuery}
+                        onChange={(e) => setSearchQuery(e.target.value)}
+                        onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
                     />
                 </div>
             </div>

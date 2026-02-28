@@ -17,6 +17,7 @@ export default function DashboardPage() {
     const [newName, setNewName] = useState('');
     const [creating, setCreating] = useState(false);
     const [history, setHistory] = useState<AnalysisHistoryItem[]>([]);
+    const [confirmDeleteWs, setConfirmDeleteWs] = useState<number | null>(null);
 
     useEffect(() => {
         if (activeWorkspace) {
@@ -122,12 +123,30 @@ export default function DashboardPage() {
                                     {activeWorkspace?.id === ws.id && (
                                         <span className="badge badge-green" style={{ fontSize: 10 }}>Active</span>
                                     )}
-                                    <button
-                                        onClick={(e) => { e.stopPropagation(); deleteWorkspace(ws.id); }}
-                                        style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#ef4444', padding: 4 }}
-                                    >
-                                        <Trash2 size={14} />
-                                    </button>
+                                    {confirmDeleteWs === ws.id ? (
+                                        <div style={{ display: 'flex', gap: 4, alignItems: 'center' }} onClick={(e) => e.stopPropagation()}>
+                                            <span style={{ fontSize: 11, color: '#ef4444' }}>Delete?</span>
+                                            <button
+                                                onClick={() => { deleteWorkspace(ws.id); setConfirmDeleteWs(null); }}
+                                                style={{ background: '#ef4444', color: '#fff', border: 'none', borderRadius: 4, padding: '2px 8px', fontSize: 11, cursor: 'pointer' }}
+                                            >
+                                                Yes
+                                            </button>
+                                            <button
+                                                onClick={() => setConfirmDeleteWs(null)}
+                                                style={{ background: '#e5e7eb', border: 'none', borderRadius: 4, padding: '2px 8px', fontSize: 11, cursor: 'pointer' }}
+                                            >
+                                                No
+                                            </button>
+                                        </div>
+                                    ) : (
+                                        <button
+                                            onClick={(e) => { e.stopPropagation(); setConfirmDeleteWs(ws.id); }}
+                                            style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#ef4444', padding: 4 }}
+                                        >
+                                            <Trash2 size={14} />
+                                        </button>
+                                    )}
                                 </div>
                             ))}
                         </div>

@@ -44,6 +44,12 @@ class TrendAgent:
         summaries_text = json.dumps(summaries, indent=2) if not isinstance(summaries, str) else summaries
         insights_text = json.dumps(insights, indent=2) if not isinstance(insights, str) else insights
 
+        # If upstream summarizer failed, skip LLM call
+        if isinstance(summaries, dict) and "error" in summaries:
+            return {
+                "error": "Trend analysis unavailable — summarizer failed upstream."
+            }
+
         messages = [
             {
                 "role": "system",
@@ -90,7 +96,7 @@ JSON only. No markdown."""
             }
         ]
 
-        response = await call_llm_async(messages, max_tokens=2000)
+        response = await call_llm_async(messages, max_tokens=1200)
 
         try:
             return json.loads(response)

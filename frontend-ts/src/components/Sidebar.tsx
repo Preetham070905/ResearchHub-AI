@@ -1,46 +1,35 @@
-import { useLocation, useNavigate } from 'react-router-dom';
+import { NavLink } from 'react-router-dom';
 import {
-    LayoutDashboard,
-    FileSearch,
-    FileText,
-    GitGraph,
-    Users,
-    BarChart3,
-    Settings,
+    LayoutDashboard, FileSearch, FileText, GitGraph,
+    Cpu, BarChart3, Search, Zap, Settings
 } from 'lucide-react';
 
-const navItems = [
-    { icon: LayoutDashboard, path: '/', label: 'Dashboard' },
-    { icon: FileSearch, path: '/analysis', label: 'Analysis' },
-    { icon: FileText, path: '/papers', label: 'Papers' },
-    { icon: GitGraph, path: '/graph', label: 'Graph' },
-    { icon: Users, path: '/agents', label: 'Agents' },
-    { icon: BarChart3, path: '/insights', label: 'Insights' },
+const NAV = [
+    { to: '/', icon: LayoutDashboard, tip: 'Dashboard' },
+    { to: '/analysis', icon: FileSearch, tip: 'Analysis' },
+    { to: '/papers', icon: FileText, tip: 'Papers' },
+    { to: '/paper-search', icon: Search, tip: 'Paper Search' },
+    { to: '/graph', icon: GitGraph, tip: 'Knowledge Graph' },
+    { to: '/agents', icon: Cpu, tip: 'Agents' },
+    { to: '/insights', icon: BarChart3, tip: 'Insights' },
+    { to: '/research-hub', icon: Zap, tip: 'Research Hub' },
 ];
 
 export default function Sidebar() {
-    const location = useLocation();
-    const navigate = useNavigate();
-
     return (
         <aside className="sidebar">
             <div className="sidebar-logo">R</div>
             <nav className="sidebar-nav">
-                {navItems.map((item) => (
-                    <button
-                        key={item.label}
-                        className={`sidebar-btn ${location.pathname === item.path ? 'active' : ''}`}
-                        onClick={() => navigate(item.path)}
-                        title={item.label}
-                    >
-                        <item.icon size={20} />
-                    </button>
+                {NAV.map(({ to, icon: Icon, tip }) => (
+                    <NavLink key={to} to={to} end={to === '/'} className="sidebar-link" title={tip}>
+                        <Icon size={20} />
+                    </NavLink>
                 ))}
             </nav>
-            <div className="sidebar-bottom">
-                <button className="sidebar-btn" title="Settings">
+            <div style={{ marginTop: 'auto', paddingBottom: 16 }}>
+                <NavLink to="/settings" className="sidebar-link" title="Settings">
                     <Settings size={20} />
-                </button>
+                </NavLink>
             </div>
         </aside>
     );

@@ -21,6 +21,15 @@ export interface PaperItem {
   workspace_id: number;
 }
 
+export interface SearchPaper {
+  title: string;
+  authors: string;
+  abstract: string;
+  year: string;
+  source: string;
+  url: string;
+}
+
 // ── Analysis ──────────────────────────────────────────────
 export interface AnalysisHistoryItem {
   id: number;
@@ -78,9 +87,11 @@ export interface PaperContext {
 export interface KnowledgeGraphData {
   node_count: number;
   edge_count: number;
-  key_concepts: string[];
-  hidden_connections: Array<Record<string, string>>;
+  key_concepts: Array<string | { name: string; centrality: number }>;
+  hidden_connections: Array<Record<string, unknown>>;
   graph_insights: string;
+  node_type_distribution?: Record<string, number>;
+  clusters?: Array<{ size: number; members: string[] }>;
 }
 
 export interface NoveltyScore {
@@ -112,4 +123,42 @@ export interface ExplainabilityLog {
   total_agents: number;
   timing_breakdown: Record<string, number>;
   pipeline_metadata: Record<string, unknown>;
+}
+
+// ── D3 Knowledge Graph ────────────────────────────────────
+export interface GraphNode {
+  id: string;
+  type: string;
+  label: string;
+  x?: number;
+  y?: number;
+  fx?: number | null;
+  fy?: number | null;
+}
+
+export interface GraphEdge {
+  source: string | GraphNode;
+  target: string | GraphNode;
+  relation: string;
+}
+
+export interface GraphData {
+  nodes: GraphNode[];
+  edges: GraphEdge[];
+}
+
+// ── Agent Response ────────────────────────────────────────
+export interface AgentResponse {
+  agent: string;
+  result: Record<string, unknown>;
+  graph?: GraphData;
+  papers?: SearchPaper[];
+}
+
+// ── Conversation ─────────────────────────────────────────
+export interface ConversationItem {
+  id: number;
+  user_message: string;
+  ai_response: string;
+  timestamp: string;
 }

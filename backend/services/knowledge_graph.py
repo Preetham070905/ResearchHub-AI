@@ -49,6 +49,17 @@ class KnowledgeGraphBuilder:
         hidden_connections, and graph_insights.
         """
         # Step 1: Extract graph elements via LLM
+        # If upstream summarizer failed, return empty graph
+        if isinstance(summaries, dict) and "error" in summaries:
+            return {
+                "node_count": 0,
+                "edge_count": 0,
+                "key_concepts": [],
+                "hidden_connections": [],
+                "graph_insights": "Knowledge graph unavailable — summarizer failed upstream.",
+                "error": summaries["error"]
+            }
+
         graph_data = await self._extract_graph_elements(summaries, insights)
 
         # Step 2: Build the graph

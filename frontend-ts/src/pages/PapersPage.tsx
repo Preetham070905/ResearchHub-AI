@@ -2,7 +2,7 @@ import { useState, useEffect, useRef, type DragEvent, type ChangeEvent } from 'r
 import { useAuth } from '../context/AuthContext';
 import api from '../api/client';
 import type { PaperItem } from '../types/api';
-import { Upload, FileText, Trash2, AlertCircle } from 'lucide-react';
+import { Upload, FileText, Trash2, AlertCircle, Download } from 'lucide-react';
 
 export default function PapersPage() {
     const { activeWorkspace } = useAuth();
@@ -11,6 +11,7 @@ export default function PapersPage() {
     const [uploading, setUploading] = useState(false);
     const [error, setError] = useState('');
     const [dragOver, setDragOver] = useState(false);
+    const [confirmDelete, setConfirmDelete] = useState<number | null>(null);
     const fileInputRef = useRef<HTMLInputElement>(null);
 
     const loadPapers = async () => {
@@ -41,6 +42,10 @@ export default function PapersPage() {
                 setError(`"${file.name}" is not a PDF file`);
                 continue;
             }
+            if (file.size > 50 * 1024 * 1024) {
+                setError(`"${file.name}" exceeds 50 MB limit`);
+                continue;
+            }
             try {
                 await api.uploadPaper(activeWorkspace.id, file);
             } catch {
@@ -49,6 +54,17 @@ export default function PapersPage() {
         }
         setUploading(false);
         await loadPapers();
+    };
+
+    const handleDelete = async (paperId: number) => {
+        if (!activeWorkspace) return;
+        try {
+            await api.deletePaper(activeWorkspace.id, paperId);
+            setConfirmDelete(null);
+            await loadPapers();
+        } catch {
+            setError('Failed to delete paper');
+        }
     };
 
     const handleDrop = (e: DragEvent) => {
@@ -116,7 +132,7 @@ export default function PapersPage() {
                     {uploading ? 'Uploading...' : 'Drop PDFs here or click to browse'}
                 </p>
                 <p style={{ fontSize: 12, color: 'var(--text-muted)' }}>
-                    Supports .pdf files • Multiple files allowed
+                    Supports .pdf files up to 50 MB each
                 </p>
             </div>
 
@@ -152,6 +168,43 @@ export default function PapersPage() {
                                 <FileText size={16} style={{ color: 'var(--accent)', flexShrink: 0 }} />
                                 <span style={{ flex: 1, fontWeight: 500 }}>{paper.filename}</span>
                                 <span className="badge badge-blue">ID: {paper.id}</span>
+
+                                <a
+                                    href={api.getDownloadUrl(activeWorkspace.id, paper.id)}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    onClick={(e) => e.stopPropagation()}
+                                    style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--accent)', padding: 4 }}
+                                    title="Download"
+                                >
+                                    <Download size={14} />
+                                </a>
+
+                                {confirmDelete === paper.id ? (
+                                    <div style={{ display: 'flex', gap: 4, alignItems: 'center' }}>
+                                        <span style={{ fontSize: 11, color: '#ef4444' }}>Delete?</span>
+                                        <button
+                                            onClick={() => handleDelete(paper.id)}
+                                            style={{ background: '#ef4444', color: '#fff', border: 'none', borderRadius: 4, padding: '2px 8px', fontSize: 11, cursor: 'pointer' }}
+                                        >
+                                            Yes
+                                        </button>
+                                        <button
+                                            onClick={() => setConfirmDelete(null)}
+                                            style={{ background: '#e5e7eb', border: 'none', borderRadius: 4, padding: '2px 8px', fontSize: 11, cursor: 'pointer' }}
+                                        >
+                                            No
+                                        </button>
+                                    </div>
+                                ) : (
+                                    <button
+                                        onClick={() => setConfirmDelete(paper.id)}
+                                        style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#ef4444', padding: 4 }}
+                                        title="Delete paper"
+                                    >
+                                        <Trash2 size={14} />
+                                    </button>
+                                )}
                             </div>
                         ))}
                     </div>

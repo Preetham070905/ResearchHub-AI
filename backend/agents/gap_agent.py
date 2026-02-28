@@ -41,6 +41,17 @@ class GapDetectionAgent:
         Returns:
             Dict with gap categories or error dict
         """
+        # If upstream summarizer failed, skip LLM call
+        if isinstance(summaries, dict) and "error" in summaries:
+            return {
+                "repeated_limitations": [],
+                "underexplored_combinations": [],
+                "missing_benchmarks": [],
+                "conflicting_findings": [],
+                "novel_research_directions": [],
+                "error": f"Skipped — summarizer failed: {summaries['error']}"
+            }
+
         summaries_text = json.dumps(summaries, indent=2)
         comparison_text = json.dumps(comparison, indent=2)
         insights_text = json.dumps(insights, indent=2)
@@ -83,7 +94,7 @@ class GapDetectionAgent:
             }
         ]
 
-        response = await call_llm_async(messages, max_tokens=2000)
+        response = await call_llm_async(messages, max_tokens=1200)
 
         try:
             parsed = json.loads(response)

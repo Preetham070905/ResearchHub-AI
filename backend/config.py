@@ -30,7 +30,8 @@ class Settings(BaseSettings):
     GROQ_API_KEY: str
     LLM_MODEL: str = "llama-3.3-70b-versatile"
     LLM_TEMPERATURE: float = 0.3
-    LLM_MAX_TOKENS: int = 2000
+    LLM_MAX_TOKENS: int = 1024
+    LLM_CONCURRENCY: int = 3  # max concurrent Groq API calls (3 is safe for free tier ~30 req/min)
 
     # --- Paper Search ---
     ARXIV_MAX_RESULTS: int = 5

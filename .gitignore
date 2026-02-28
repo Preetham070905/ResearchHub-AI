@@ -6,6 +6,10 @@ __pycache__/
 venv/
 .venv/
 
+# ── Node.js ───────────────────────────────────────
+node_modules/
+dist/
+
 # ── Environment variables ─────────────────────────
 .env
 .env.*
@@ -35,6 +39,11 @@ desktop.ini
 backend/uploads/
 backend/papers/
 backend/storage/
+
+# ── Temp files ────────────────────────────────────
+tmpclaude-*
+backend/tmpclaude-*
+backend/test_api_out.txt
 
 # ── Gemini artifacts ──────────────────────────────
 *.resolved

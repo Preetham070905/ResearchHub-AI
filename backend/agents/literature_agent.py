@@ -31,12 +31,10 @@ class LiteratureReviewAgent:
         """
         if not summaries:
             raise ValueError("summaries cannot be empty")
-        if not comparison:
-            raise ValueError("comparison cannot be empty")
-        if not insights:
-            raise ValueError("insights cannot be empty")
-        if not gaps:
-            raise ValueError("gaps cannot be empty")
+
+        # If upstream summarizer failed, return a clear message instead of wasting an LLM call
+        if isinstance(summaries, dict) and "error" in summaries:
+            return "Literature review unavailable — the summarizer agent failed upstream."
 
         summaries_text = json.dumps(summaries, indent=2)
         comparison_text = json.dumps(comparison, indent=2)
@@ -82,7 +80,7 @@ class LiteratureReviewAgent:
         ]
 
         try:
-            response = await call_llm_async(messages, max_tokens=4000)
+            response = await call_llm_async(messages, max_tokens=1500)
             return response.strip()
         except Exception as e:
             logger.error(f"Literature review generation failed: {str(e)}")

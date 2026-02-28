@@ -15,7 +15,7 @@ const PROGRESS_STAGES = [
     '⚖️ Running comparison & insight agents...',
     '🔬 Detecting research gaps...',
     '🧠 Building knowledge graph, scoring novelty, forecasting trends...',
-    '📚 Generating literature review...',
+    '📚 Generating literature review & roadmap...',
     '✨ Synthesizing final answer...',
 ];
 
@@ -51,7 +51,7 @@ export default function AnalysisPage() {
         if (!loading) { setProgressIdx(0); return; }
         const interval = setInterval(() => {
             setProgressIdx((i) => (i < PROGRESS_STAGES.length - 1 ? i + 1 : i));
-        }, 8000); // each stage ~8s (pipeline takes 30-90s)
+        }, 5000); // each stage ~5s (pipeline takes 20-50s with parallel agents)
         return () => clearInterval(interval);
     }, [loading]);
 
@@ -135,7 +135,7 @@ export default function AnalysisPage() {
                             {PROGRESS_STAGES[progressIdx]}
                         </p>
                         <p style={{ fontSize: 12, color: 'var(--text-muted)' }}>
-                            This typically takes 30–90 seconds. All 11 agents are working...
+                            This typically takes 20–50 seconds. Agents are running in parallel...
                         </p>
                         {/* Progress bar */}
                         <div style={{

@@ -1,327 +1,240 @@
-/* ──────────────────────────────────────────────────────────
-   All 16 result-section renderers in a single file.
-   Each takes its typed data and renders inside a SectionCard.
-   ────────────────────────────────────────────────────────── */
-
-import SectionCard from './SectionCard';
-import Markdown from 'react-markdown';
-import {
-    MessageSquare, Book, GitGraph, ArrowLeftRight, AlertTriangle,
-    Lightbulb, Sparkles, TrendingUp, Wrench, FlaskConical,
-    Map, ShieldCheck, Eye, FileText, Target, Activity, Zap
-} from 'lucide-react';
+/**
+ * AllSections — Renders the full 16-section analysis report.
+ * Used by ResearchHubPage and AnalysisPage to display results.
+ */
+import ReactMarkdown from 'react-markdown';
 import type { AnalysisResult } from '../types/api';
+import ConfidenceGauge from './ConfidenceGauge';
 
-// ── Helpers ──────────────────────────────────────────────
-function renderList(items: unknown[]) {
-    return (
-        <ul style={{ paddingLeft: 16 }}>
-            {items.map((item, i) => (
-                <li key={i} className="list-item">
-                    {typeof item === 'string' ? item : JSON.stringify(item, null, 2)}
-                </li>
-            ))}
-        </ul>
-    );
+interface Props {
+    result: AnalysisResult;
 }
 
-function renderKeyValue(obj: Record<string, unknown>) {
-    return Object.entries(obj).map(([k, v]) => (
-        <div className="status-row" key={k}>
-            <span className="label">{k.replace(/_/g, ' ')}</span>
-            <span className="value">
-                {typeof v === 'string' || typeof v === 'number' ? String(v) : JSON.stringify(v)}
-            </span>
+function Section({ title, icon, children }: { title: string; icon: string; children: React.ReactNode }) {
+    return (
+        <div className="card" style={{ padding: 16, marginBottom: 10 }}>
+            <h3 style={{ fontSize: 14, fontWeight: 700, marginBottom: 8, display: 'flex', alignItems: 'center', gap: 6 }}>
+                <span style={{ fontSize: 18 }}>{icon}</span> {title}
+            </h3>
+            {children}
         </div>
-    ));
-}
-
-// ── Sections ──────────────────────────────────────────────
-export function DirectAnswerSection({ data }: { data: AnalysisResult['direct_answer'] }) {
-    if (!data) return null;
-    return (
-        <SectionCard title="Direct Answer" icon={<MessageSquare size={16} />} tag="Section 1" defaultOpen>
-            <p><strong>Query:</strong> {data.query}</p>
-            <p><strong>Papers found:</strong> {data.papers_found} (arXiv: {data.sources.arxiv}, PubMed: {data.sources.pubmed})</p>
-            {data.intent && (
-                <p><strong>Intent:</strong> {typeof data.intent === 'string' ? data.intent : JSON.stringify(data.intent)}</p>
-            )}
-        </SectionCard>
     );
 }
 
-export function ContextSummarySection({ data }: { data: AnalysisResult['context_summary'] }) {
-    if (!data) return null;
+function JsonBlock({ data }: { data: unknown }) {
+    if (!data) return <p style={{ fontSize: 12, color: 'var(--text-muted)' }}>No data available.</p>;
+
+    if (typeof data === 'string') {
+        return (
+            <div style={{ fontSize: 12, lineHeight: 1.7 }}>
+                <ReactMarkdown>{data}</ReactMarkdown>
+            </div>
+        );
+    }
+
+    if (Array.isArray(data)) {
+        return (
+            <ul style={{ fontSize: 12, lineHeight: 1.8, margin: 0, paddingLeft: 16 }}>
+                {data.map((item, i) => (
+                    <li key={i}>{typeof item === 'string' ? item : JSON.stringify(item)}</li>
+                ))}
+            </ul>
+        );
+    }
+
+    if (typeof data === 'object' && data !== null) {
+        return (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                {Object.entries(data as Record<string, unknown>).map(([key, val]) => (
+                    <div key={key} style={{
+                        padding: '6px 10px', background: 'var(--bg-input)', borderRadius: 6, fontSize: 12,
+                    }}>
+                        <strong style={{ textTransform: 'capitalize' }}>{key.replace(/_/g, ' ')}:</strong>{' '}
+                        {typeof val === 'string' ? val : JSON.stringify(val)}
+                    </div>
+                ))}
+            </div>
+        );
+    }
+
+    return <span style={{ fontSize: 12 }}>{String(data)}</span>;
+}
+
+export default function AllSections({ result }: Props) {
     return (
-        <SectionCard title="Context Summary" icon={<Book size={16} />} tag="Section 2">
-            <p><strong>{data.total_papers} papers</strong> retrieved</p>
-            <table className="data-table">
-                <thead>
-                    <tr><th>Title</th><th>Source</th><th>Authors</th></tr>
-                </thead>
-                <tbody>
-                    {data.papers.map((p, i) => (
-                        <tr key={i}>
-                            <td><a href={p.url} target="_blank" rel="noreferrer" style={{ color: 'var(--blue)' }}>{p.title}</a></td>
-                            <td><span className={`badge ${p.source === 'arxiv' ? 'badge-blue' : 'badge-green'}`}>{p.source}</span></td>
-                            <td>{p.authors}</td>
-                        </tr>
+        <div>
+            {result.direct_answer && (
+                <Section title="Direct Answer" icon="📌">
+                    <div style={{ fontSize: 12 }}>
+                        <strong>Query:</strong> {result.direct_answer.query}<br />
+                        <strong>Papers Found:</strong> {result.direct_answer.papers_found}<br />
+                        <strong>Sources:</strong> arXiv ({result.direct_answer.sources?.arxiv ?? 0}), PubMed ({result.direct_answer.sources?.pubmed ?? 0})
+                    </div>
+                </Section>
+            )}
+
+            {result.context_summary && (
+                <Section title="Context Summary" icon="📄">
+                    <div style={{ fontSize: 12 }}>
+                        <strong>{result.context_summary.total_papers} papers analyzed</strong>
+                        {result.context_summary.papers?.slice(0, 5).map((p, i) => (
+                            <div key={i} style={{ padding: '6px 10px', background: 'var(--bg-input)', borderRadius: 6, marginTop: 6 }}>
+                                <strong>{p.title}</strong>
+                                <div style={{ color: 'var(--text-muted)', fontSize: 11 }}>{p.authors} • {p.source}</div>
+                            </div>
+                        ))}
+                    </div>
+                </Section>
+            )}
+
+            {result.comparison && (
+                <Section title="Comparative Analysis" icon="⚖️">
+                    <JsonBlock data={result.comparison} />
+                </Section>
+            )}
+
+            {result.deep_insights && (
+                <Section title="Deep Insights" icon="💡">
+                    <JsonBlock data={result.deep_insights} />
+                </Section>
+            )}
+
+            {result.gap_analysis && (
+                <Section title="Gap Analysis" icon="🔍">
+                    <JsonBlock data={result.gap_analysis} />
+                </Section>
+            )}
+
+            {result.knowledge_graph && (
+                <Section title="Knowledge Graph" icon="🕸️">
+                    <div style={{ display: 'flex', gap: 12, marginBottom: 8 }}>
+                        <span className="badge badge-blue">{result.knowledge_graph.node_count} nodes</span>
+                        <span className="badge">{result.knowledge_graph.edge_count} edges</span>
+                    </div>
+                    {result.knowledge_graph.key_concepts && (
+                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, marginBottom: 8 }}>
+                            {result.knowledge_graph.key_concepts.map((c, i) => (
+                                <span key={i} className="badge badge-blue" style={{ fontSize: 10 }}>
+                                    {typeof c === 'string' ? c : (c as Record<string, unknown>).name ?? JSON.stringify(c)}
+                                </span>
+                            ))}
+                        </div>
+                    )}
+                    <p style={{ fontSize: 12, lineHeight: 1.6 }}>{result.knowledge_graph.graph_insights}</p>
+                </Section>
+            )}
+
+            {result.novelty_score && (
+                <Section title="Novelty Score" icon="🆕">
+                    <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
+                        <div style={{ fontSize: 36, fontWeight: 800, color: 'var(--accent)' }}>
+                            {result.novelty_score.overall_score}/100
+                        </div>
+                        <div style={{ fontSize: 12, lineHeight: 1.6 }}>
+                            {result.novelty_score.explanation}
+                        </div>
+                    </div>
+                </Section>
+            )}
+
+            {result.trend_forecast && (
+                <Section title="Trend Forecast" icon="📈">
+                    <JsonBlock data={result.trend_forecast} />
+                </Section>
+            )}
+
+            {result.recommended_methods_datasets && (
+                <Section title="Recommended Methods & Datasets" icon="🧪">
+                    <JsonBlock data={result.recommended_methods_datasets} />
+                </Section>
+            )}
+
+            {result.experiment_suggestions && (
+                <Section title="Experiment Suggestions" icon="🔬">
+                    <ul style={{ fontSize: 12, lineHeight: 1.8, margin: 0, paddingLeft: 16 }}>
+                        {result.experiment_suggestions.map((s, i) => <li key={i}>{s}</li>)}
+                    </ul>
+                </Section>
+            )}
+
+            {result.researcher_roadmap && (
+                <Section title="Researcher Roadmap" icon="🗺️">
+                    <JsonBlock data={result.researcher_roadmap} />
+                </Section>
+            )}
+
+            {result.argument_strength && (
+                <Section title="Argument Strength" icon="⚡">
+                    {result.argument_strength.map((a, i) => (
+                        <div key={i} style={{
+                            padding: 10, background: 'var(--bg-input)', borderRadius: 6, marginBottom: 6, fontSize: 12,
+                        }}>
+                            <strong>Claim:</strong> {a.claim}<br />
+                            <strong>Evidence:</strong> {a.evidence_strength} | <strong>Reliability:</strong> {a.reliability}<br />
+                            <strong>Missing:</strong> {a.missing_evidence} | <strong>Bias:</strong> {a.bias_indicators}
+                        </div>
                     ))}
-                </tbody>
-            </table>
-        </SectionCard>
-    );
-}
-
-export function KnowledgeGraphSection({ data }: { data: AnalysisResult['knowledge_graph'] }) {
-    if (!data) return null;
-    return (
-        <SectionCard title="Knowledge Graph" icon={<GitGraph size={16} />} tag="Section 3">
-            <div style={{ display: 'flex', gap: 20, marginBottom: 12 }}>
-                <div><strong>{data.node_count}</strong> nodes</div>
-                <div><strong>{data.edge_count}</strong> edges</div>
-            </div>
-            {data.key_concepts && (
-                <>
-                    <p><strong>Key Concepts:</strong></p>
-                    <div className="badges-row">
-                        {data.key_concepts.map((c, i) => <span key={i} className="badge badge-purple">{c}</span>)}
-                    </div>
-                </>
+                </Section>
             )}
-            {data.graph_insights && <p style={{ marginTop: 12 }}>{data.graph_insights}</p>}
-            {data.hidden_connections?.length > 0 && (
-                <>
-                    <p style={{ marginTop: 12 }}><strong>Hidden Connections:</strong></p>
-                    {renderList(data.hidden_connections)}
-                </>
+
+            {result.scientific_critique && (
+                <Section title="Scientific Critique" icon="🧐">
+                    <JsonBlock data={result.scientific_critique} />
+                </Section>
             )}
-        </SectionCard>
-    );
-}
 
-export function ComparisonSection({ data }: { data: AnalysisResult['comparison'] }) {
-    if (!data || 'error' in data) return null;
-    return (
-        <SectionCard title="Comparison Table" icon={<ArrowLeftRight size={16} />} tag="Section 4">
-            {renderKeyValue(data as Record<string, unknown>)}
-        </SectionCard>
-    );
-}
-
-export function GapAnalysisSection({ data }: { data: AnalysisResult['gap_analysis'] }) {
-    if (!data || 'error' in data) return null;
-    return (
-        <SectionCard title="Gap Analysis" icon={<AlertTriangle size={16} />} tag="Section 5">
-            {Object.entries(data as Record<string, unknown>).map(([key, val]) => (
-                <div key={key} style={{ marginBottom: 12 }}>
-                    <strong style={{ textTransform: 'capitalize' }}>{key.replace(/_/g, ' ')}:</strong>
-                    {Array.isArray(val) ? renderList(val) : <p>{String(val)}</p>}
-                </div>
-            ))}
-        </SectionCard>
-    );
-}
-
-export function DeepInsightsSection({ data }: { data: AnalysisResult['deep_insights'] }) {
-    if (!data || 'error' in data) return null;
-    return (
-        <SectionCard title="Deep Insights" icon={<Lightbulb size={16} />} tag="Section 6">
-            {Object.entries(data as Record<string, unknown>).map(([key, val]) => (
-                <div key={key} style={{ marginBottom: 12 }}>
-                    <strong style={{ textTransform: 'capitalize' }}>{key.replace(/_/g, ' ')}:</strong>
-                    {Array.isArray(val) ? renderList(val) : <p>{String(val)}</p>}
-                </div>
-            ))}
-        </SectionCard>
-    );
-}
-
-export function NoveltyScoreSection({ data }: { data: AnalysisResult['novelty_score'] }) {
-    if (!data) return null;
-    const scores = [
-        { label: 'Uniqueness', val: data.uniqueness_score },
-        { label: 'Scientific Novelty', val: data.scientific_novelty_score },
-        { label: 'Practical Novelty', val: data.practical_novelty_score },
-        { label: 'Redundancy Risk', val: data.redundancy_risk_score },
-        { label: 'Opportunity', val: data.opportunity_score },
-    ];
-    return (
-        <SectionCard title="Novelty Score" icon={<Sparkles size={16} />} tag="Section 7">
-            <div style={{ textAlign: 'center', marginBottom: 16 }}>
-                <div className="score-big">{data.overall_score}/100</div>
-            </div>
-            {scores.map((s) => s.val !== undefined && (
-                <div key={s.label} style={{ marginBottom: 10 }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12 }}>
-                        <span>{s.label}</span><span style={{ fontWeight: 700 }}>{s.val}</span>
+            {result.literature_review && (
+                <Section title="Literature Review" icon="📚">
+                    <div style={{ fontSize: 12, lineHeight: 1.7 }}>
+                        <ReactMarkdown>{result.literature_review}</ReactMarkdown>
                     </div>
-                    <div className="score-bar"><div className="score-bar-fill" style={{ width: `${s.val}%` }} /></div>
-                </div>
-            ))}
-            {data.explanation && <p style={{ marginTop: 12 }}>{data.explanation}</p>}
-        </SectionCard>
-    );
-}
+                </Section>
+            )}
 
-export function TrendForecastSection({ data }: { data: AnalysisResult['trend_forecast'] }) {
-    if (!data || 'error' in data) return null;
-    return (
-        <SectionCard title="Trend Forecast" icon={<TrendingUp size={16} />} tag="Section 8">
-            {Object.entries(data as Record<string, unknown>).map(([key, val]) => (
-                <div key={key} style={{ marginBottom: 12 }}>
-                    <strong style={{ textTransform: 'capitalize' }}>{key.replace(/_/g, ' ')}:</strong>
-                    {Array.isArray(val) ? renderList(val) : <p>{String(val)}</p>}
-                </div>
-            ))}
-        </SectionCard>
-    );
-}
-
-export function RecommendedMethodsSection({ data }: { data: AnalysisResult['recommended_methods_datasets'] }) {
-    if (!data) return null;
-    return (
-        <SectionCard title="Recommended Methods & Datasets" icon={<Wrench size={16} />} tag="Section 9">
-            {renderKeyValue(data as Record<string, unknown>)}
-        </SectionCard>
-    );
-}
-
-export function ExperimentSuggestionsSection({ data }: { data: AnalysisResult['experiment_suggestions'] }) {
-    if (!data) return null;
-    return (
-        <SectionCard title="Experiment Suggestions" icon={<FlaskConical size={16} />} tag="Section 10">
-            {renderList(data)}
-        </SectionCard>
-    );
-}
-
-export function ResearcherRoadmapSection({ data }: { data: AnalysisResult['researcher_roadmap'] }) {
-    if (!data || 'error' in data) return null;
-    return (
-        <SectionCard title="Researcher Roadmap" icon={<Map size={16} />} tag="Section 11">
-            {Object.entries(data as Record<string, unknown>).map(([key, val]) => (
-                <div key={key} style={{ marginBottom: 12 }}>
-                    <strong style={{ textTransform: 'capitalize' }}>{key.replace(/_/g, ' ')}:</strong>
-                    {Array.isArray(val) ? renderList(val) : typeof val === 'object' && val !== null
-                        ? renderKeyValue(val as Record<string, unknown>)
-                        : <p>{String(val)}</p>}
-                </div>
-            ))}
-        </SectionCard>
-    );
-}
-
-export function ArgumentStrengthSection({ data }: { data: AnalysisResult['argument_strength'] }) {
-    if (!data || !Array.isArray(data) || data.length === 0) return null;
-    return (
-        <SectionCard title="Argument Strength" icon={<ShieldCheck size={16} />} tag="Section 12">
-            <table className="data-table">
-                <thead>
-                    <tr><th>Claim</th><th>Strength</th><th>Reliability</th><th>Bias</th></tr>
-                </thead>
-                <tbody>
-                    {data.map((item, i) => (
-                        <tr key={i}>
-                            <td>{item.claim}</td>
-                            <td><span className={`badge ${item.evidence_strength === 'strong' ? 'badge-green' : item.evidence_strength === 'moderate' ? 'badge-amber' : 'badge-red'}`}>{item.evidence_strength}</span></td>
-                            <td>{item.reliability}</td>
-                            <td>{item.bias_indicators}</td>
-                        </tr>
-                    ))}
-                </tbody>
-            </table>
-        </SectionCard>
-    );
-}
-
-export function ScientificCritiqueSection({ data }: { data: AnalysisResult['scientific_critique'] }) {
-    if (!data || 'error' in data) return null;
-    return (
-        <SectionCard title="Scientific Critique" icon={<Eye size={16} />} tag="Section 13">
-            {Object.entries(data as Record<string, unknown>).map(([key, val]) => (
-                <div key={key} style={{ marginBottom: 12 }}>
-                    <strong style={{ textTransform: 'capitalize' }}>{key.replace(/_/g, ' ')}:</strong>
-                    {Array.isArray(val) ? renderList(val) : <p>{String(val)}</p>}
-                </div>
-            ))}
-        </SectionCard>
-    );
-}
-
-export function LiteratureReviewSection({ data }: { data: AnalysisResult['literature_review'] }) {
-    if (!data) return null;
-    return (
-        <SectionCard title="Literature Review" icon={<FileText size={16} />} tag="Section 14">
-            <div className="markdown-content">
-                <Markdown>{data}</Markdown>
-            </div>
-        </SectionCard>
-    );
-}
-
-export function FinalAnswerSection({ data }: { data: AnalysisResult['final_simplified_answer'] }) {
-    if (!data) return null;
-    return (
-        <SectionCard title="Final Simplified Answer" icon={<Zap size={16} />} tag="Final" defaultOpen>
-            <p>{data}</p>
-        </SectionCard>
-    );
-}
-
-export function ConfidenceScoreSection({ data }: { data: AnalysisResult['confidence_score'] }) {
-    if (!data) return null;
-    return (
-        <SectionCard title="Confidence Score" icon={<Target size={16} />} tag="Section 15">
-            <div style={{ textAlign: 'center', marginBottom: 12 }}>
-                <div className="score-big">{data.overall}/100</div>
-            </div>
-            {data.factors && Object.entries(data.factors).map(([k, v]) => (
-                <div key={k} style={{ marginBottom: 8 }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12 }}>
-                        <span>{k.replace(/_/g, ' ')}</span><span style={{ fontWeight: 700 }}>{v}</span>
+            {result.final_simplified_answer && (
+                <Section title="Final Simplified Answer" icon="✨">
+                    <div style={{ fontSize: 12, lineHeight: 1.7 }}>
+                        <ReactMarkdown>{result.final_simplified_answer}</ReactMarkdown>
                     </div>
-                    <div className="score-bar"><div className="score-bar-fill" style={{ width: `${v}%` }} /></div>
+                </Section>
+            )}
+
+            {/* Confidence Gauge at the bottom */}
+            {result.confidence_score && (
+                <div className="card" style={{ padding: 20, display: 'flex', justifyContent: 'center', alignItems: 'center', gap: 20 }}>
+                    <ConfidenceGauge score={result.confidence_score.overall} size={100} />
+                    <div>
+                        <h4 style={{ fontSize: 13, fontWeight: 700, marginBottom: 4 }}>Confidence Score</h4>
+                        {result.confidence_score.factors && (
+                            <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>
+                                {Object.entries(result.confidence_score.factors).map(([k, v]) => (
+                                    <span key={k} style={{ marginRight: 12 }}>
+                                        {k.replace(/_/g, ' ')}: <strong>{(v * 100).toFixed(0)}%</strong>
+                                    </span>
+                                ))}
+                            </div>
+                        )}
+                    </div>
                 </div>
-            ))}
-        </SectionCard>
-    );
-}
+            )}
 
-export function ExplainabilityLogSection({ data }: { data: AnalysisResult['explainability_log'] }) {
-    if (!data) return null;
-    return (
-        <SectionCard title="Explainability Log" icon={<Activity size={16} />} tag="Section 16">
-            <p><strong>Agents activated:</strong> {data.total_agents}</p>
-            <div className="badges-row" style={{ marginBottom: 12 }}>
-                {data.agents_activated.map((a, i) => <span key={i} className="badge badge-blue">{a}</span>)}
-            </div>
-            {data.pipeline_metadata && renderKeyValue(data.pipeline_metadata as Record<string, unknown>)}
-        </SectionCard>
-    );
-}
-
-// ── Master Renderer ─────────────────────────────────────
-export default function AllSections({ result }: { result: AnalysisResult }) {
-    return (
-        <div className="sections-list">
-            <DirectAnswerSection data={result.direct_answer} />
-            <FinalAnswerSection data={result.final_simplified_answer} />
-            <ContextSummarySection data={result.context_summary} />
-            <KnowledgeGraphSection data={result.knowledge_graph} />
-            <ComparisonSection data={result.comparison} />
-            <GapAnalysisSection data={result.gap_analysis} />
-            <DeepInsightsSection data={result.deep_insights} />
-            <NoveltyScoreSection data={result.novelty_score} />
-            <TrendForecastSection data={result.trend_forecast} />
-            <RecommendedMethodsSection data={result.recommended_methods_datasets} />
-            <ExperimentSuggestionsSection data={result.experiment_suggestions} />
-            <ResearcherRoadmapSection data={result.researcher_roadmap} />
-            <ArgumentStrengthSection data={result.argument_strength} />
-            <ScientificCritiqueSection data={result.scientific_critique} />
-            <LiteratureReviewSection data={result.literature_review} />
-            <ConfidenceScoreSection data={result.confidence_score} />
-            <ExplainabilityLogSection data={result.explainability_log} />
+            {result.explainability_log && (
+                <Section title="Explainability Log" icon="📊">
+                    <div style={{ fontSize: 12 }}>
+                        <strong>Agents Activated:</strong> {result.explainability_log.agents_activated?.join(', ')}<br />
+                        <strong>Total:</strong> {result.explainability_log.total_agents}
+                        {result.explainability_log.timing_breakdown && (
+                            <div style={{ marginTop: 8, display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+                                {Object.entries(result.explainability_log.timing_breakdown).map(([k, v]) => (
+                                    <span key={k} className="badge" style={{ fontSize: 10 }}>
+                                        {k}: {v.toFixed(1)}s
+                                    </span>
+                                ))}
+                            </div>
+                        )}
+                    </div>
+                </Section>
+            )}
         </div>
     );
 }

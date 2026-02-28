@@ -19,11 +19,12 @@ import json
 import logging
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
+from typing import List
 
 from database import get_db
-from models import User, AnalysisResult, Workspace
+from models import User, AnalysisResult, Workspace, Conversation
 from auth import get_current_user
-from schemas import ChatRequest, ChatResponse
+from schemas import ChatRequest, ChatResponse, ConversationResponse
 from agents.orchestrator import AgentOrchestrator
 
 logger = logging.getLogger(__name__)
@@ -66,7 +67,7 @@ async def analyze(
 
     try:
         orchestrator = AgentOrchestrator()
-        result = await orchestrator.run(request.query)
+        result = await orchestrator.run(request.query, workspace_id=request.workspace_id)
     except Exception as e:
         logger.error(f"Pipeline failed for query '{request.query}': {e}")
         raise HTTPException(
@@ -86,6 +87,17 @@ async def analyze(
                 result_json=result
             )
             db.add(analysis)
+
+            # Also save to conversation history
+            ai_summary = result.get("final_simplified_answer", "") or result.get("direct_answer", {}).get("query", "Analysis complete")
+            if isinstance(ai_summary, dict):
+                ai_summary = json.dumps(ai_summary)
+            conversation = Conversation(
+                workspace_id=request.workspace_id,
+                user_message=request.query,
+                ai_response=str(ai_summary)[:2000]
+            )
+            db.add(conversation)
             db.commit()
         except Exception as e:
             logger.error(f"Failed to save analysis result: {e}")
@@ -152,3 +164,25 @@ def get_analysis_result(
         "result": analysis.result_json,
         "created_at": analysis.created_at.isoformat() if analysis.created_at else None
     }
+
+
+@router.get("/conversations/{workspace_id}", response_model=List[ConversationResponse])
+def get_conversations(
+    workspace_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """Get conversation history for a workspace."""
+    workspace = db.query(Workspace).filter(
+        Workspace.id == workspace_id,
+        Workspace.owner_id == current_user.id
+    ).first()
+
+    if not workspace:
+        raise HTTPException(status_code=404, detail="Workspace not found")
+
+    conversations = db.query(Conversation).filter(
+        Conversation.workspace_id == workspace_id
+    ).order_by(Conversation.timestamp.desc()).all()
+
+    return conversations

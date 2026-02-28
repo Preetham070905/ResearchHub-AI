@@ -44,6 +44,33 @@ def list_workspaces(
     return workspaces
 
 
+# ---------------- UPDATE WORKSPACE ----------------
+@router.patch("/{workspace_id}", response_model=WorkspaceResponse)
+def update_workspace(
+    workspace_id: int,
+    request: WorkspaceCreate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+
+    workspace = db.query(Workspace).filter(
+        Workspace.id == workspace_id,
+        Workspace.owner_id == current_user.id
+    ).first()
+
+    if not workspace:
+        raise HTTPException(status_code=404, detail="Workspace not found")
+
+    if not request.name.strip():
+        raise HTTPException(status_code=400, detail="Workspace name cannot be empty")
+
+    workspace.name = request.name.strip()
+    db.commit()
+    db.refresh(workspace)
+
+    return workspace
+
+
 # ---------------- DELETE WORKSPACE ----------------
 @router.delete("/{workspace_id}")
 def delete_workspace(

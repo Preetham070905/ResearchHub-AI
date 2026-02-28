@@ -31,6 +31,7 @@ import logging
 from typing import Dict, Any, List
 
 from services.paper_search import search_papers, PaperResult
+from services.pdf_extractor import extract_papers_from_workspace
 from services.knowledge_graph import KnowledgeGraphBuilder
 from services.llm_service import call_llm_async
 from agents.summarizer_agent import SummarizerAgent
@@ -51,12 +52,13 @@ logger = logging.getLogger(__name__)
 class AgentOrchestrator:
     """Master controller that chains all agents into a 16-section pipeline."""
 
-    async def run(self, query: str) -> Dict[str, Any]:
+    async def run(self, query: str, workspace_id: int = None) -> Dict[str, Any]:
         """
         Execute the full research analysis pipeline.
 
         Args:
             query: The user's research question
+            workspace_id: The ID of the workspace (used to fetch uploaded PDFs)
 
         Returns:
             Dict containing all 16 sections of the output format
@@ -75,14 +77,21 @@ class AgentOrchestrator:
         agents_activated.append("intent_router")
 
         # ========================================
-        # STEP 2: Paper Search (arXiv + PubMed)
+        # STEP 2: Paper Search & Uploads
         # ========================================
         step_start = time.time()
         paper_results: List[PaperResult] = await search_papers(query)
-        timing_log["paper_search"] = round(time.time() - step_start, 2)
+
+        # Merge with uploaded papers
+        if workspace_id:
+            uploaded_papers = extract_papers_from_workspace(workspace_id)
+            if uploaded_papers:
+                paper_results.extend(uploaded_papers)
+
+        timing_log["paper_search_and_extract"] = round(time.time() - step_start, 2)
 
         if not paper_results:
-            return self._empty_result(query, "No papers found for this query")
+            return self._empty_result(query, "No papers found online and no PDFs uploaded in this workspace")
 
         # Convert to format expected by agents (objects with title/abstract)
         papers_for_agents = paper_results  # PaperResult has .title and .abstract
@@ -150,11 +159,12 @@ class AgentOrchestrator:
         agents_activated.append("gap")
 
         # ========================================
-        # STEP 6: Knowledge Graph + Novelty + Trend + Critique + Roadmap (PARALLEL)
-        # These are all independent of each other. Run them concurrently.
+        # STEP 6: KG + Novelty + Trend + Critique (PARALLEL)
+        # These are independent of each other and only need summaries/comparison/insights.
+        # Running them in parallel with concurrency=3 stays within Groq rate limits.
         #
-        # GRACEFUL DEGRADATION: Each result is checked individually.
-        # If novelty fails but roadmap succeeds, the user still gets a roadmap.
+        # GRACEFUL DEGRADATION: return_exceptions=True means if one
+        # fails, the others still complete. We check each result.
         # ========================================
         step_start = time.time()
 
@@ -162,53 +172,81 @@ class AgentOrchestrator:
         novelty_agent = NoveltyAgent()
         trend_agent = TrendAgent()
         critique_agent = CritiqueAgent()
-        roadmap_agent = RoadmapAgent()
 
-        parallel_results = await asyncio.gather(
+        step6_results = await asyncio.gather(
             kg_builder.build(summaries, insights),
             novelty_agent.run(query, summaries, insights),
             trend_agent.run(query, summaries, insights),
             critique_agent.run(summaries, comparison),
-            roadmap_agent.run(query, summaries, gaps),
             return_exceptions=True
         )
 
-        # Unpack with fallbacks
-        agent_names = ["knowledge_graph", "novelty", "trend", "critique", "roadmap"]
-        fallbacks = [
-            {"node_count": 0, "edge_count": 0, "error": "KG build failed"},
-            {"overall_score": 0, "explanation": "Novelty scoring failed"},
-            {"error": "Trend analysis failed"},
-            {"scientific_critique": {"strong_points": [], "weak_points": []}, "argument_strength": []},
-            {"error": "Roadmap generation failed"},
-        ]
+        # 6a: Knowledge Graph
+        if isinstance(step6_results[0], Exception):
+            logger.error(f"Knowledge graph agent failed: {step6_results[0]}")
+            kg_result = {"node_count": 0, "edge_count": 0, "error": "KG build failed"}
+        else:
+            kg_result = step6_results[0]
+        agents_activated.append("knowledge_graph")
 
-        kg_result, novelty, trend, critique, roadmap = [
-            fallbacks[i] if isinstance(r, Exception) else r
-            for i, r in enumerate(parallel_results)
-        ]
+        # 6b: Novelty
+        if isinstance(step6_results[1], Exception):
+            logger.error(f"Novelty agent failed: {step6_results[1]}")
+            novelty = {"overall_score": 0, "explanation": "Novelty scoring failed"}
+        else:
+            novelty = step6_results[1]
+        agents_activated.append("novelty")
 
-        # Log any failures
-        for i, r in enumerate(parallel_results):
-            if isinstance(r, Exception):
-                logger.error(f"{agent_names[i]} agent failed: {r}")
+        # 6c: Trend
+        if isinstance(step6_results[2], Exception):
+            logger.error(f"Trend agent failed: {step6_results[2]}")
+            trend = {"error": "Trend analysis failed"}
+        else:
+            trend = step6_results[2]
+        agents_activated.append("trend")
 
-        timing_log["parallel_agents"] = round(time.time() - step_start, 2)
-        agents_activated.extend(agent_names)
+        # 6d: Critique
+        if isinstance(step6_results[3], Exception):
+            logger.error(f"Critique agent failed: {step6_results[3]}")
+            critique = {"scientific_critique": {"strong_points": [], "weak_points": []}, "argument_strength": []}
+        else:
+            critique = step6_results[3]
+        agents_activated.append("critique")
+
+        timing_log["step6_parallel"] = round(time.time() - step_start, 2)
 
         # ========================================
-        # STEP 7: Literature Review
-        # Depends on: summaries, comparison, insights, gaps
+        # STEP 7: Roadmap + Literature Review (PARALLEL)
+        # Both depend on gaps (from step 5) but not on each other.
         # ========================================
         step_start = time.time()
+
+        roadmap_agent = RoadmapAgent()
         literature_agent = LiteratureReviewAgent()
-        try:
-            literature_review = await literature_agent.run(summaries, comparison, insights, gaps)
-        except Exception as e:
-            logger.error(f"Literature agent failed: {e}")
-            literature_review = f"Literature review generation failed: {str(e)}"
-        timing_log["literature_review"] = round(time.time() - step_start, 2)
+
+        step7_results = await asyncio.gather(
+            roadmap_agent.run(query, summaries, gaps),
+            literature_agent.run(summaries, comparison, insights, gaps),
+            return_exceptions=True
+        )
+
+        # 7a: Roadmap
+        if isinstance(step7_results[0], Exception):
+            logger.error(f"Roadmap agent failed: {step7_results[0]}")
+            roadmap = {"error": "Roadmap generation failed"}
+        else:
+            roadmap = step7_results[0]
+        agents_activated.append("roadmap")
+
+        # 7b: Literature Review
+        if isinstance(step7_results[1], Exception):
+            logger.error(f"Literature agent failed: {step7_results[1]}")
+            literature_review = f"Literature review generation failed: {str(step7_results[1])}"
+        else:
+            literature_review = step7_results[1]
         agents_activated.append("literature")
+
+        timing_log["step7_parallel"] = round(time.time() - step_start, 2)
 
         # ========================================
         # STEP 7.5: Final Simplified Answer
