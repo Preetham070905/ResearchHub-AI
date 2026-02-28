@@ -1,7 +1,7 @@
 import { NavLink } from 'react-router-dom';
 import {
     LayoutDashboard, FileSearch, FileText, GitGraph,
-    Cpu, BarChart3, Search, Zap, Settings
+    Cpu, BarChart3, Search, Zap, ShieldCheck, Settings
 } from 'lucide-react';
 
 const NAV = [
@@ -13,6 +13,7 @@ const NAV = [
     { to: '/agents', icon: Cpu, tip: 'Agents' },
     { to: '/insights', icon: BarChart3, tip: 'Insights' },
     { to: '/research-hub', icon: Zap, tip: 'Research Hub' },
+    { to: '/plagiarism', icon: ShieldCheck, tip: 'Plagiarism Checker' },
 ];
 
 export default function Sidebar() {

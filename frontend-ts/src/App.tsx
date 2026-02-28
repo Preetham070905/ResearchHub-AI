@@ -11,6 +11,7 @@ import AgentsPage from './pages/AgentsPage';
 import InsightsPage from './pages/InsightsPage';
 import PaperSearchPage from './pages/PaperSearchPage';
 import ResearchHubPage from './pages/ResearchHubPage';
+import PlagiarismPage from './pages/PlagiarismPage';
 import type { ReactNode } from 'react';
 
 function ProtectedRoute({ children }: { children: ReactNode }) {
@@ -44,6 +45,7 @@ function AppRoutes() {
       <Route path="/agents" element={<ProtectedRoute><AgentsPage /></ProtectedRoute>} />
       <Route path="/insights" element={<ProtectedRoute><InsightsPage /></ProtectedRoute>} />
       <Route path="/research-hub" element={<ProtectedRoute><ResearchHubPage /></ProtectedRoute>} />
+      <Route path="/plagiarism" element={<ProtectedRoute><PlagiarismPage /></ProtectedRoute>} />
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
   );

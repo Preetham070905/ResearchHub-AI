@@ -11,7 +11,7 @@
 [![Groq](https://img.shields.io/badge/Groq-LLaMA_3.3_70B-F55036)](https://groq.com)
 [![License](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 
-**An end-to-end AI-powered research assistant that orchestrates 11 specialized agents to transform any research question into a comprehensive 16-section scientific analysis — complete with paper retrieval, knowledge graphs, novelty scoring, trend forecasting, and actionable roadmaps.**
+**An end-to-end AI-powered research assistant that orchestrates 12 specialized agents to transform any research question into a comprehensive 16-section scientific analysis — complete with paper retrieval, knowledge graphs, novelty scoring, trend forecasting, plagiarism detection, and actionable roadmaps.**
 
 [Features](#-key-features) · [Architecture](#-system-architecture) · [Setup](#-getting-started) · [API](#-api-endpoints) · [Uniqueness](#-what-makes-this-unique)
 
@@ -48,7 +48,7 @@ Academic research today is **drowning in information overload**. Every year, ove
 | **No structured workflow** | No tool combines search → summarize → compare → identify gaps → plan next steps |
 | **Bias blind spots** | Individual researchers carry unconscious biases into their reviews |
 
-**ResearchHub AI solves all of these** by deploying a team of 11 specialized AI agents that work together — like a research lab — to produce a structured, reproducible, and comprehensive analysis in **under 60 seconds**.
+**ResearchHub AI solves all of these** by deploying a team of 12 specialized AI agents that work together — like a research lab — to produce a structured, reproducible, and comprehensive analysis in **under 60 seconds**.
 
 ---
 
@@ -66,6 +66,7 @@ Academic research today is **drowning in information overload**. Every year, ove
 - 🧐 **Scientific Critique** — Evaluates argument strength, evidence reliability, and bias indicators
 - 🗺️ **30-Day Researcher Roadmap** — Week-by-week learning plan with projects, datasets, and baselines
 - 📚 **Automated Literature Review** — Generates a structured academic review (no fabricated citations)
+- 🛡️ **Plagiarism Detection** — TF-IDF + cosine similarity engine with sentence-level matching, inspired by [lynxrose/research-paper-plagiarism-detector](https://github.com/lynxrose/research-paper-plagiarism-detector). Upload PDFs, paste text, or compare workspace papers with AI-powered interpretation
 - ✨ **Final Simplified Answer** — A layperson-friendly 2–3 paragraph synthesis
 - 📊 **Confidence Scoring** — Data-driven quality score (0–100) with breakdown
 - 🔐 **JWT Authentication** — Secure user accounts with bcrypt password hashing
@@ -260,7 +261,7 @@ ResearchHub-AI/
 │   ├── schemas.py                  # Pydantic request/response schemas
 │   ├── auth.py                     # JWT + bcrypt authentication
 │   │
-│   ├── agents/                     # 🧠 11 AI Agents
+│   ├── agents/                     # 🧠 12 AI Agents
 │   │   ├── orchestrator.py         # Master controller — chains & parallelizes all agents
 │   │   ├── intent_router.py        # Classifies query into 7 research intent types
 │   │   ├── summarizer_agent.py     # Structured per-paper summarization
@@ -272,20 +273,23 @@ ResearchHub-AI/
 │   │   ├── trend_agent.py          # Research trend forecasting
 │   │   ├── critique_agent.py       # Scientific critique + argument strength
 │   │   ├── roadmap_agent.py        # 30-day researcher learning roadmap
+│   │   ├── plagiarism_agent.py     # TF-IDF plagiarism detection + LLM analysis
 │   │   └── system_prompt.py        # All agent role definitions + shared preamble
 │   │
 │   ├── services/                   # Core services
 │   │   ├── llm_service.py          # Async Groq LLM client with retry + rate limiting
 │   │   ├── paper_search.py         # arXiv + PubMed concurrent paper retrieval
 │   │   ├── pdf_extractor.py        # PDF text extraction from uploaded files
-│   │   └── knowledge_graph.py      # NetworkX graph builder + analysis
+│   │   ├── knowledge_graph.py      # NetworkX graph builder + analysis
+│   │   └── plagiarism_service.py   # TF-IDF vectorization + cosine similarity engine
 │   │
 │   ├── routers/                    # API route handlers
 │   │   ├── auth_router.py          # /auth/register, /auth/login
 │   │   ├── workspace_router.py     # /workspaces/ CRUD
 │   │   ├── paper_router.py         # /papers/ upload, list, download, import
 │   │   ├── chat_router.py          # /chat/analyze — main pipeline endpoint
-│   │   └── agent_router.py         # /agents/ — individual agent endpoints
+│   │   ├── agent_router.py         # /agents/ — individual agent endpoints
+│   │   └── plagiarism_router.py    # /plagiarism/ — plagiarism detection endpoints
 │   │
 │   └── requirements.txt
 │
@@ -308,6 +312,7 @@ ResearchHub-AI/
 │   │   │   ├── PapersPage.tsx       # PDF upload + paper management
 │   │   │   ├── PaperSearchPage.tsx  # arXiv/PubMed search + import to workspace
 │   │   │   ├── GraphPage.tsx        # D3.js knowledge graph visualization
+│   │   │   ├── PlagiarismPage.tsx   # Plagiarism checker UI (upload/paste/compare)
 │   │   │   ├── AgentsPage.tsx       # Individual agent testing
 │   │   │   ├── InsightsPage.tsx     # Insights dashboard
 │   │   │   └── ResearchHubPage.tsx  # Combined research hub interface
@@ -468,13 +473,20 @@ python graph_rag.py      # Interactive Q&A
 | POST | `/agents/knowledge-graph` | Run knowledge graph builder only |
 | POST | `/agents/route-intent` | Run intent classifier only |
 
+### Plagiarism Detection
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| POST | `/plagiarism/check` | Upload a PDF and check against workspace papers |
+| POST | `/plagiarism/check-text` | Check raw text against workspace papers |
+| POST | `/plagiarism/compare-papers` | Compare two specific papers for similarity |
+
 ---
 
 ## 🌟 What Makes This Unique
 
 | Feature | ResearchHub AI | ChatGPT / Perplexity | Semantic Scholar | Elicit |
 |---------|---------------|----------------------|-----------------|--------|
-| Multi-agent orchestration | ✅ 11 specialized agents | ❌ Single model | ❌ | ❌ |
+| Multi-agent orchestration | ✅ 12 specialized agents | ❌ Single model | ❌ | ❌ |
 | Real-time paper retrieval | ✅ arXiv + PubMed live | ❌ Training cutoff | ✅ | ✅ |
 | Knowledge graph construction | ✅ NetworkX + centrality | ❌ | ❌ | ❌ |
 | 5-dimensional novelty scoring | ✅ | ❌ | ❌ | ❌ |
@@ -487,6 +499,7 @@ python graph_rag.py      # Interactive Q&A
 | Workspace-based organization | ✅ | ❌ | ❌ | ✅ |
 | Full explainability log | ✅ Per-agent timing + reasoning | ❌ | ❌ | ❌ |
 | Graceful degradation | ✅ Partial results on failure | ❌ | N/A | ❌ |
+| Plagiarism detection | ✅ TF-IDF + cosine + LLM analysis | ❌ | ❌ | ❌ |
 
 ---
 

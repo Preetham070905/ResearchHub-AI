@@ -192,6 +192,49 @@ class ApiClient {
         const { data } = await this.http.post<AgentResponse>('/agents/route-intent', { query });
         return data;
     }
+
+    // ── Plagiarism Checker ─────────────────────────────────
+    async plagiarismCheckFile(
+        file: File, workspaceId: number, useLlm = true
+    ): Promise<{ status: string; result: unknown; message?: string }> {
+        const form = new FormData();
+        form.append('file', file);
+        form.append('workspace_id', workspaceId.toString());
+        form.append('use_llm', useLlm.toString());
+        const { data } = await this.http.post('/plagiarism/check', form, {
+            headers: { 'Content-Type': 'multipart/form-data' },
+            timeout: 180_000,
+        });
+        return data;
+    }
+
+    async plagiarismCheckText(
+        text: string, title: string, workspaceId: number, useLlm = true
+    ): Promise<{ status: string; result: unknown; message?: string }> {
+        const form = new FormData();
+        form.append('text', text);
+        form.append('title', title);
+        form.append('workspace_id', workspaceId.toString());
+        form.append('use_llm', useLlm.toString());
+        const { data } = await this.http.post('/plagiarism/check-text', form, {
+            timeout: 180_000,
+        });
+        return data;
+    }
+
+    async plagiarismComparePapers(
+        paperAId: number, paperBId: number, workspaceId: number, useLlm = true
+    ): Promise<{ status: string; result: unknown; message?: string }> {
+        const form = new FormData();
+        form.append('paper_a_id', paperAId.toString());
+        form.append('paper_b_id', paperBId.toString());
+        form.append('workspace_id', workspaceId.toString());
+        form.append('use_llm', useLlm.toString());
+        const { data } = await this.http.post('/plagiarism/compare-papers', form, {
+            timeout: 180_000,
+        });
+        return data;
+    }
 }
 
 const api = new ApiClient();

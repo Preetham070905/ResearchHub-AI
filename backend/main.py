@@ -19,6 +19,7 @@ from routers import workspace_router
 from routers import paper_router
 from routers import chat_router
 from routers import agent_router
+from routers import plagiarism_router
 
 load_dotenv()
 
@@ -53,6 +54,7 @@ app.include_router(workspace_router.router)
 app.include_router(paper_router.router)
 app.include_router(chat_router.router)
 app.include_router(agent_router.router)
+app.include_router(plagiarism_router.router)
 
 
 @app.get("/")
